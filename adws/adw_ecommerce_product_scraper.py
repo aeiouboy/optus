@@ -543,13 +543,23 @@ def main(
                                 if result:
                                     products.append(result)
                                     
-                                    # Incremental save
+                                    # Incremental save - separate files per retailer
                                     try:
-                                        current_data = [p.to_dict() for p in products]
-                                        # Ensure directory exists (in case it wasn't created yet)
-                                        os.makedirs(os.path.dirname(output_file_full_path), exist_ok=True)
-                                        with open(output_file_full_path, 'w', encoding='utf-8') as f:
-                                            json.dump(current_data, f, ensure_ascii=False, indent=2)
+                                        # Group products by retailer
+                                        from collections import defaultdict
+                                        products_by_retailer = defaultdict(list)
+                                        for p in products:
+                                            retailer_name = p.retailer.lower().replace(' ', '_') if p.retailer else 'unknown'
+                                            products_by_retailer[retailer_name].append(p.to_dict())
+                                        
+                                        # Save each retailer to a separate file
+                                        output_dir = os.path.dirname(output_file_full_path)
+                                        os.makedirs(output_dir, exist_ok=True)
+                                        
+                                        for retailer_name, retailer_products in products_by_retailer.items():
+                                            retailer_file = os.path.join(output_dir, f"{retailer_name}.json")
+                                            with open(retailer_file, 'w', encoding='utf-8') as f:
+                                                json.dump(retailer_products, f, ensure_ascii=False, indent=2)
                                     except Exception as e:
                                         console.print(f"[yellow]Warning: Failed to save incremental results: {e}[/yellow]")
                                         
@@ -596,14 +606,30 @@ def main(
 
         console.print(summary_table)
 
-        # Convert products to dictionaries
+        # Group products by retailer
+        from collections import defaultdict
+        products_by_retailer = defaultdict(list)
+        for product in products:
+            retailer_name = product.retailer.lower().replace(' ', '_') if product.retailer else 'unknown'
+            products_by_retailer[retailer_name].append(product.to_dict())
+
+        # Save results - separate file per retailer
+        output_dir = os.path.dirname(output_file_full_path)
+        os.makedirs(output_dir, exist_ok=True)
+        
+        saved_files = []
+        for retailer_name, retailer_products in products_by_retailer.items():
+            retailer_file = os.path.join(output_dir, f"{retailer_name}.json")
+            print_status_panel(console, f"Saving {len(retailer_products)} {retailer_name} products to {retailer_file}", adw_id, "output")
+            with open(retailer_file, 'w', encoding='utf-8') as f:
+                json.dump(retailer_products, f, ensure_ascii=False, indent=2)
+            saved_files.append((retailer_name, retailer_file, len(retailer_products)))
+        
+        print_status_panel(console, f"Saved {len(saved_files)} retailer files to {output_dir}", adw_id, "output", "success")
+        
+        # Also create combined products_data for other output formats
         products_data = [product.to_dict() for product in products]
 
-        # Save results to file
-        print_status_panel(console, f"Saving results to {output_file_full_path}", adw_id, "output")
-        os.makedirs(os.path.dirname(output_file_full_path), exist_ok=True)
-        with open(output_file_full_path, 'w', encoding='utf-8') as f:
-            json.dump(products_data, f, ensure_ascii=False, indent=2)
 
         # Save structured outputs following ADW patterns
         if output_folder:
