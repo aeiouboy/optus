@@ -1,0 +1,48 @@
+{
+  "type": "scraping_results",
+  "adw_id": "283c0636",
+  "timestamp": "2025-11-22T17:52:20.840054",
+  "summary": {
+    "total_urls": 1,
+    "successful_scrapes": 1,
+    "failed_scrapes": 0,
+    "success_rate": 100.0,
+    "total_content_length": 283,
+    "total_links_found": 0,
+    "total_images_found": 0,
+    "status_code_distribution": {
+      "200": 1
+    },
+    "processing_time": "2025-11-22T17:52:20.838833"
+  },
+  "results": [
+    {
+      "url": "https://example.com",
+      "success": true,
+      "content": "<html>\n<head><title>Example Domain</title></head>\n<body>\n<div>\n<h1>Example Domain</h1>\n<p>This domain is for use in documentation examples without needing permission. Avoid use in operations.</p>\n<p><a href=\"https://iana.org/domains/example\">Learn more</a></p>\n</div>\n</body>\n</html>",
+      "markdown": "# Example Domain\nThis domain is for use in documentation examples without needing permission. Avoid use in operations.\n[Learn more](https://iana.org/domains/example)\n",
+      "html": "<!DOCTYPE html><html lang=\"en\"><head><title>Example Domain</title><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><style>body{background:#eee;width:60vw;margin:15vh auto;font-family:system-ui,sans-serif}h1{font-size:1.5em}div{opacity:0.8}a:link,a:visited{color:#348}</style></head><body><div><h1>Example Domain</h1><p>This domain is for use in documentation examples without needing permission. Avoid use in operations.</p><p><a href=\"https://iana.org/domains/example\">Learn more</a></p></div>\n</body></html>",
+      "links": [],
+      "images": [],
+      "metadata": {
+        "title": "",
+        "description": "",
+        "language": "",
+        "status_code": 200,
+        "url": "https://example.com",
+        "word_count": 28,
+        "domain": "example.com",
+        "content_type": "documentation",
+        "scraped_at": 1763808739.515511,
+        "extraction_method": "crawl4ai",
+        "links_count": 0,
+        "images_count": 0
+      },
+      "error_message": null,
+      "timestamp": 1763808739.515511,
+      "status_code": 200
+    }
+  ],
+  "input_source": "single URL: https://example.com",
+  "output_organization": "date"
+}

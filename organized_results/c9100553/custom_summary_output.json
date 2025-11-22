@@ -1,0 +1,9 @@
+{
+  "task": "web_scraping",
+  "adw_id": "c9100553",
+  "tool": "crawl4ai",
+  "success": false,
+  "error_message": "crawl4ai is not installed. Install it with: pip install crawl4ai",
+  "urls_attempted": 1,
+  "urls_completed": 0
+}

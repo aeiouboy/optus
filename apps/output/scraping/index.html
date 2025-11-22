@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraping Results Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .search-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .search-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 0.75rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .results-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .results-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .results-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .navigation-tabs {
+            display: flex;
+            background: white;
+            border-radius: 10px 10px 0 0;
+            overflow: hidden;
+            margin-bottom: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tab {
+            padding: 1rem 2rem;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .tab:hover {
+            background: #e9ecef;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 2rem;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 5px;
+            margin: 1rem 0;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80%;
+            overflow-y: auto;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .preview-content {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .search-form {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .results-table {
+                font-size: 0.9rem;
+            }
+
+            .results-table th,
+            .results-table td {
+                padding: 0.5rem;
+            }
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🕷️ Scraping Results Dashboard</h1>
+            <div class="subtitle">Browse, search, and manage your web scraping results</div>
+        </header>
+
+        <!-- Statistics Overview -->
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats will be populated by JavaScript -->
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="navigation-tabs">
+            <button class="tab active" onclick="showTab('search')">🔍 Search Results</button>
+            <button class="tab" onclick="showTab('browse')">📂 Browse by Organization</button>
+            <button class="tab" onclick="showTab('manage')">🔧 Manage Results</button>
+            <button class="tab" onclick="showTab('analytics')">📊 Analytics</button>
+        </div>
+
+        <!-- Search Tab -->
+        <div id="search-tab" class="tab-content active">
+            <div class="search-section">
+                <h2>Search Results</h2>
+                <form class="search-form" id="searchForm">
+                    <div class="form-group">
+                        <label for="searchQuery">Text Query</label>
+                        <input type="text" id="searchQuery" placeholder="Search in content and metadata...">
+                    </div>
+                    <div class="form-group">
+                        <label for="domainFilter">Domain</label>
+                        <select id="domainFilter">
+                            <option value="">All Domains</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="contentTypeFilter">Content Type</label>
+                        <select id="contentTypeFilter">
+                            <option value="">All Types</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="dateFrom">Date From</label>
+                        <input type="date" id="dateFrom">
+                    </div>
+                    <div class="form-group">
+                        <label for="dateTo">Date To</label>
+                        <input type="date" id="dateTo">
+                    </div>
+                    <div class="form-group">
+                        <label for="maxResults">Max Results</label>
+                        <input type="number" id="maxResults" value="50" min="1" max="1000">
+                    </div>
+                </form>
+                <div class="actions">
+                    <button class="btn btn-primary" onclick="performSearch()">
+                        <span id="searchSpinner" class="spinner" style="display: none;"></span>
+                        Search
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearSearch()">Clear</button>
+                </div>
+            </div>
+
+            <div class="results-section">
+                <h2>Search Results</h2>
+                <div id="searchResults">
+                    <div class="loading">Enter search criteria and click Search to find results</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Browse Tab -->
+        <div id="browse-tab" class="tab-content">
+            <div class="results-section">
+                <h2>Browse by Organization Method</h2>
+                <div class="search-form">
+                    <div class="form-group">
+                        <label for="organizationMethod">Organization Method</label>
+                        <select id="organizationMethod" onchange="browseResults()">
+                            <option value="by_date">By Date</option>
+                            <option value="by_domain">By Domain</option>
+                            <option value="by_type">By Content Type</option>
+                            <option value="latest">Latest Results</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="browseResults">
+                    <div class="loading">Select an organization method to browse</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Tab -->
+        <div id="manage-tab" class="tab-content">
+            <div class="results-section">
+                <h2>Manage Results</h2>
+                <div class="search-form">
+                    <div class="form-group">
+                        <label>Cleanup Options</label>
+                        <div style="margin-top: 0.5rem;">
+                            <button class="btn btn-danger" onclick="showCleanupDialog()">🗑️ Cleanup Old Results</button>
+                            <button class="btn btn-secondary" onclick="organizeResults()">📁 Organize Results</button>
+                            <button class="btn btn-secondary" onclick="refreshStats()">🔄 Refresh Statistics</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="manageResults">
+                    <div class="loading">Select an action to manage your results</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analytics-tab" class="tab-content">
+            <div class="chart-container">
+                <h2>Scraping Analytics</h2>
+                <div id="analyticsContent">
+                    <div class="loading">Loading analytics data...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closePreviewModal()">&times;</span>
+            <h2 id="previewTitle">Result Preview</h2>
+            <div id="previewContent" class="preview-content"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentResults = [];
+        let currentStats = {};
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStatistics();
+            loadFilterOptions();
+            showTab('search');
+        });
+
+        // Tab management
+        function showTab(tabName) {
+            // Hide all tabs
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+
+            const tabButtons = document.querySelectorAll('.tab');
+            tabButtons.forEach(button => button.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+
+            // Load tab-specific content
+            if (tabName === 'browse') {
+                browseResults();
+            } else if (tabName === 'analytics') {
+                loadAnalytics();
+            }
+        }
+
+        // Load statistics
+        async function loadStatistics() {
+            try {
+                const response = await fetch('utils/result_manager.py');
+                // Since we can't directly execute Python, we'll simulate with mock data
+                const mockStats = {
+                    total_results: 0,
+                    total_size_mb: 0,
+                    by_domain: {},
+                    by_content_type: {},
+                    latest_activity: new Date().toISOString()
+                };
+
+                // In a real implementation, this would call a backend API
+                displayStatistics(mockStats);
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+                displayStatistics({
+                    total_results: 0,
+                    total_size_mb: 0,
+                    by_domain: {},
+                    by_content_type: {}
+                });
+            }
+        }
+
+        // Display statistics
+        function displayStatistics(stats) {
+            currentStats = stats;
+            const statsGrid = document.getElementById('statsGrid');
+
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${stats.total_results || 0}</div>
+                    <div class="stat-label">Total Results</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${(stats.total_size_mb || 0).toFixed(1)}MB</div>
+                    <div class="stat-label">Total Size</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${Object.keys(stats.by_domain || {}).length}</div>
+                    <div class="stat-label">Domains</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${Object.keys(stats.by_content_type || {}).length}</div>
+                    <div class="stat-label">Content Types</div>
+                </div>
+            `;
+        }
+
+        // Load filter options
+        async function loadFilterOptions() {
+            // Mock data for demonstration
+            const mockDomains = ['example.com', 'test.org', 'demo.net'];
+            const mockContentTypes = ['articles', 'products', 'documentation', 'general'];
+
+            const domainSelect = document.getElementById('domainFilter');
+            const contentTypeSelect = document.getElementById('contentTypeFilter');
+
+            mockDomains.forEach(domain => {
+                const option = document.createElement('option');
+                option.value = domain;
+                option.textContent = domain;
+                domainSelect.appendChild(option);
+            });
+
+            mockContentTypes.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+                contentTypeSelect.appendChild(option);
+            });
+        }
+
+        // Search functionality
+        async function performSearch() {
+            const searchSpinner = document.getElementById('searchSpinner');
+            searchSpinner.style.display = 'inline-block';
+
+            const query = document.getElementById('searchQuery').value;
+            const domain = document.getElementById('domainFilter').value;
+            const contentType = document.getElementById('contentTypeFilter').value;
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+            const maxResults = document.getElementById('maxResults').value;
+
+            try {
+                // In a real implementation, this would call the find_results.py script
+                // For now, we'll simulate with mock data
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate delay
+
+                const mockResults = generateMockResults();
+                currentResults = mockResults;
+                displaySearchResults(mockResults);
+
+            } catch (error) {
+                console.error('Error performing search:', error);
+                document.getElementById('searchResults').innerHTML =
+                    '<div class="error">Error performing search. Please try again.</div>';
+            } finally {
+                searchSpinner.style.display = 'none';
+            }
+        }
+
+        // Generate mock results for demonstration
+        function generateMockResults() {
+            const results = [];
+            const domains = ['example.com', 'test.org', 'demo.net'];
+            const contentTypes = ['articles', 'products', 'documentation'];
+
+            for (let i = 0; i < 10; i++) {
+                results.push({
+                    name: `result_${i + 1}`,
+                    path: `/by_date/2024-01-${String(i + 1).padStart(2, '0')}/job_${100 + i}`,
+                    size_mb: Math.random() * 10,
+                    created: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000),
+                    domains: [domains[i % domains.length]],
+                    content_type: contentTypes[i % contentTypes.length],
+                    url_count: Math.floor(Math.random() * 100) + 1,
+                    file_count: Math.floor(Math.random() * 50) + 10
+                });
+            }
+
+            return results;
+        }
+
+        // Display search results
+        function displaySearchResults(results) {
+            const resultsDiv = document.getElementById('searchResults');
+
+            if (results.length === 0) {
+                resultsDiv.innerHTML = '<div class="loading">No results found matching your criteria</div>';
+                return;
+            }
+
+            let html = `
+                <p>Found ${results.length} results:</p>
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Path</th>
+                            <th>Size</th>
+                            <th>Created</th>
+                            <th>Domains</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            results.forEach(result => {
+                const createdDate = new Date(result.created).toLocaleDateString();
+                const domains = result.domains ? result.domains.join(', ') : 'N/A';
+                const type = result.content_type || 'N/A';
+
+                html += `
+                    <tr>
+                        <td>${result.name}</td>
+                        <td><code>${result.path}</code></td>
+                        <td>${result.size_mb.toFixed(1)}MB</td>
+                        <td>${createdDate}</td>
+                        <td>${domains}</td>
+                        <td><span class="badge badge-success">${type}</span></td>
+                        <td>
+                            <button class="btn btn-primary" onclick="previewResult('${result.name}')" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Preview</button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            resultsDiv.innerHTML = html;
+        }
+
+        // Clear search
+        function clearSearch() {
+            document.getElementById('searchForm').reset();
+            document.getElementById('searchResults').innerHTML =
+                '<div class="loading">Enter search criteria and click Search to find results</div>';
+            currentResults = [];
+        }
+
+        // Browse results
+        async function browseResults() {
+            const method = document.getElementById('organizationMethod').value;
+            const resultsDiv = document.getElementById('browseResults');
+
+            resultsDiv.innerHTML = '<div class="loading">Loading browse results...</div>';
+
+            try {
+                // Simulate loading browse results
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Mock browse results
+                let html = '';
+                if (method === 'by_date') {
+                    html = '<h3>Results by Date</h3><p>Organized by date: YYYY-MM-DD/domain/job-id</p>';
+                } else if (method === 'by_domain') {
+                    html = '<h3>Results by Domain</h3><p>Organized by domain: domain/YYYY-MM-DD/job-id</p>';
+                } else if (method === 'by_type') {
+                    html = '<h3>Results by Content Type</h3><p>Organized by content type: type/domain/YYYY-MM-DD/job-id</p>';
+                } else if (method === 'latest') {
+                    html = '<h3>Latest Results</h3><p>Most recent scraping results</p>';
+                }
+
+                html += '<div class="loading">Browse functionality would show directory structure here</div>';
+                resultsDiv.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error browsing results:', error);
+                resultsDiv.innerHTML = '<div class="error">Error loading browse results</div>';
+            }
+        }
+
+        // Load analytics
+        async function loadAnalytics() {
+            const analyticsDiv = document.getElementById('analyticsContent');
+
+            analyticsDiv.innerHTML = '<div class="loading">Loading analytics data...</div>';
+
+            try {
+                // Simulate loading analytics
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Mock analytics content
+                analyticsDiv.innerHTML = `
+                    <h3>Scraping Activity Overview</h3>
+                    <p>This section would contain charts and graphs showing:</p>
+                    <ul>
+                        <li>Results over time</li>
+                        <li>Domain distribution</li>
+                        <li>Content type breakdown</li>
+                        <li>Storage usage trends</li>
+                        <li>Success rates</li>
+                    </ul>
+                    <div class="loading">Analytics charts would be displayed here</div>
+                `;
+
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                analyticsDiv.innerHTML = '<div class="error">Error loading analytics</div>';
+            }
+        }
+
+        // Preview result
+        function previewResult(resultName) {
+            const modal = document.getElementById('previewModal');
+            const title = document.getElementById('previewTitle');
+            const content = document.getElementById('previewContent');
+
+            title.textContent = `Preview: ${resultName}`;
+            content.textContent = `Preview content for ${resultName} would be displayed here. In a real implementation, this would load and display the actual content from the result files.`;
+
+            modal.style.display = 'block';
+        }
+
+        // Close preview modal
+        function closePreviewModal() {
+            document.getElementById('previewModal').style.display = 'none';
+        }
+
+        // Show cleanup dialog
+        function showCleanupDialog() {
+            if (confirm('This would open a cleanup dialog to remove old results. In a real implementation, this would provide options for age-based cleanup, size limits, etc.')) {
+                document.getElementById('manageResults').innerHTML =
+                    '<div class="success">Cleanup functionality would be implemented here</div>';
+            }
+        }
+
+        // Organize results
+        function organizeResults() {
+            if (confirm('This would run the organize_results.py script to organize existing results into the standard structure. Continue?')) {
+                document.getElementById('manageResults').innerHTML =
+                    '<div class="success">Organization process would run here</div>';
+            }
+        }
+
+        // Refresh statistics
+        function refreshStats() {
+            loadStatistics();
+            const manageResults = document.getElementById('manageResults');
+            manageResults.innerHTML = '<div class="success">Statistics refreshed!</div>';
+            setTimeout(() => {
+                manageResults.innerHTML = '<div class="loading">Select an action to manage your results</div>';
+            }, 2000);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('previewModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

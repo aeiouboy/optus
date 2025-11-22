@@ -1,0 +1,13 @@
+[project]
+name = "adw-scraper-test"
+version = "0.1.0"
+dependencies = [
+    "pydantic",
+    "python-dotenv",
+    "click",
+    "rich",
+    "crawl4ai",
+]
+
+[tool.uv]
+dev-dependencies = []

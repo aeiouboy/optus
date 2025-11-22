@@ -1,0 +1,24 @@
+# Research & Academic Websites
+# Educational and research institution websites
+
+# Thai Universities
+https://www.chula.ac.th
+https://www.kasetsart.ac.th
+https://www.mahidol.ac.th
+https://www.cmu.ac.th
+
+# International Research
+https://scholar.google.com
+https://arxiv.org
+https://www.researchgate.net
+https://www.academia.edu
+
+# Government Websites (Thailand)
+https://www.go.th
+https://www.data.go.th
+https://www.bot.or.th
+
+# Statistics & Data
+https://www.stat.go.th
+https://data.worldbank.org
+https://ourworldindata.org

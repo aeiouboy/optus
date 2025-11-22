@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "filesystem-with-morph": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@morph-llm/morph-fast-apply"
+      ],
+      "env": {}
+    },
+    "firecrawl-mcp": {
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "fc-18b59533f9974201acded74b7cc0614d"
+      }
+    }
+  }
+}

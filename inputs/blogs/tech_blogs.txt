@@ -1,0 +1,29 @@
+# Technology Blogs & Content Sites
+# Popular tech blogs and programming content websites
+
+# International Tech Blogs
+https://techcrunch.com
+https://www.theverge.com
+https://arstechnica.com
+https://www.wired.com
+
+# Developer Blogs
+https://dev.to
+https://medium.com/topic/technology
+https://hackernoon.com
+https://towardsdatascience.com
+
+# Thai Tech Content
+https://www.blognone.com
+https://techsauce.co
+https://www.brandbuffet.in.th/category/digital
+
+# Programming Tutorials
+https://www.freecodecamp.org/news/
+https://www.digitalocean.com/community/tutorials
+https://www.tutorialspoint.com
+
+# Design & UX
+https://www.uxdesign.cc
+https://www.smashingmagazine.com
+https://www.designboom.com

@@ -1,0 +1,29 @@
+# Thai News Websites
+# Major news portals and media websites in Thailand
+
+# National News Agencies
+https://www.bangkokpost.com
+https://www.nationthailand.com
+https://www.thaipbsworld.com
+
+# Thai Language News
+https://www.komchadluek.net
+https://www.thairath.co.th
+https://www.matichon.co.th
+https://www.khaosod.co.th
+https://www.posttoday.com
+
+# Business News
+https://www.bangkokpost.com/business
+https://www.brandbuffet.in.th
+https://www.prachachat.net
+
+# Technology News
+https://www.blognone.com
+https://www.itportal.net
+https://techsquad.co.th
+
+# Lifestyle News
+https://www.prapat.com
+https://www.sanook.com
+https://www.mthai.com

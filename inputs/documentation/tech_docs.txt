@@ -1,0 +1,33 @@
+# Technical Documentation Websites
+# Programming frameworks, APIs, and technical documentation
+
+# Programming Languages
+https://docs.python.org/3/
+https://developer.mozilla.org/en-US/docs/Web/JavaScript
+https://docs.oracle.com/en/java/
+
+# Web Frameworks
+https://docs.djangoproject.com/
+https://flask.palletsprojects.com/
+https://reactjs.org/docs/
+https://vuejs.org/guide/
+
+# Cloud Platforms
+https://docs.aws.amazon.com/
+https://cloud.google.com/docs
+https://docs.microsoft.com/en-us/azure/
+
+# Database Documentation
+https://dev.mysql.com/doc/
+https://www.postgresql.org/docs/
+https://docs.mongodb.com/
+
+# API Documentation
+https://restfulapi.net/
+https://swagger.io/specification/
+https://graphql.org/learn/
+
+# Development Tools
+https://git-scm.com/doc
+https://docs.docker.com/
+https://kubernetes.io/docs/

@@ -1,0 +1,11 @@
+{
+  "created_at": "2025-11-22T17:52:46.694535",
+  "result_path": "apps/output/scraping/by_type/general/example.com/2025-11-22/283c0636",
+  "structure_version": "1.0",
+  "subdirectories": [
+    "raw",
+    "processed",
+    "summary",
+    "assets"
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "version": "1.0",
+  "created": "2024-01-22T00:00:00Z",
+  "description": "Configuration for scraping results organization and management",
+
+  "organization": {
+    "default_method": "by_date",
+    "supported_methods": ["by_date", "by_domain", "by_type"],
+    "create_latest_links": true,
+    "directory_structure": {
+      "standard_subdirs": ["logs"],
+      "readme_files": false,
+      "metadata_files": false,
+      "simplified_output": true
+    }
+  },
+
+  "retention": {
+    "default_retention_days": 365,
+    "max_total_size_gb": 50,
+    "cleanup_policies": {
+      "by_age": {
+        "enabled": true,
+        "default_age_days": 365,
+        "critical_age_days": 730
+      },
+      "by_size": {
+        "enabled": true,
+        "threshold_gb": 50,
+        "critical_threshold_gb": 100
+      },
+      "by_content_type": {
+        "enabled": false,
+        "type_specific_retention": {
+          "general": 365,
+          "products": 180,
+          "articles": 365,
+          "documentation": 730
+        }
+      }
+    }
+  },
+
+  "content_detection": {
+    "url_patterns": {
+      "products": ["/product", "/item", "/shop", "/buy"],
+      "articles": ["/article", "/blog", "/news", "/post"],
+      "documentation": ["/doc", "/documentation", "/guide", "/help"],
+      "api": ["/api", "/endpoint", "/service"]
+    },
+    "content_keywords": {
+      "products": ["price", "cart", "checkout", "buy", "purchase"],
+      "articles": ["article", "published", "author", "blog", "news"],
+      "documentation": ["documentation", "guide", "tutorial", "help", "manual"]
+    },
+    "default_type": "general"
+  },
+
+  "search": {
+    "max_results": 1000,
+    "default_page_size": 50,
+    "include_content_preview": true,
+    "preview_length": 500,
+    "indexing": {
+      "enabled": false,
+      "auto_rebuild": true,
+      "rebuild_interval_hours": 24
+    }
+  },
+
+  "dashboard": {
+    "enabled": true,
+    "auto_refresh": true,
+    "refresh_interval_seconds": 300,
+    "show_analytics": true,
+    "default_view": "search",
+    "theme": "light"
+  },
+
+  "backup": {
+    "enabled": false,
+    "default_backup_dir": "",
+    "backup_before_cleanup": true,
+    "compression": true,
+    "retention_backups": 5
+  },
+
+  "integration": {
+    "crawl4ai": {
+      "auto_organize": true,
+      "output_format_options": ["json", "csv", "markdown"],
+      "default_output_format": "json",
+      "create_metadata": true,
+      "save_raw_data": true
+    }
+  },
+
+  "logging": {
+    "level": "INFO",
+    "file_logging": true,
+    "log_dir": "logs",
+    "max_log_size_mb": 10,
+    "log_retention_days": 30,
+    "log_format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  },
+
+  "performance": {
+    "max_concurrent_operations": 5,
+    "operation_timeout_seconds": 300,
+    "chunk_size": 100,
+    "memory_limit_mb": 1024
+  },
+
+  "security": {
+    "restrict_file_access": true,
+    "allowed_extensions": [".json", ".jsonl", ".csv", ".md", ".txt", ".html", ".htm"],
+    "max_file_size_mb": 100,
+    "scan_for_malware": false
+  },
+
+  "notifications": {
+    "enabled": false,
+    "cleanup_warnings": true,
+    "size_threshold_alerts": true,
+    "email": {
+      "enabled": false,
+      "smtp_server": "",
+      "smtp_port": 587,
+      "username": "",
+      "password": "",
+      "recipients": []
+    }
+  },
+
+  "api": {
+    "enabled": false,
+    "port": 8080,
+    "host": "localhost",
+    "cors_enabled": true,
+    "api_key_required": false,
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 60
+    }
+  }
+}
