@@ -104,30 +104,51 @@ class ProductData:
             return "Unknown Retailer"
 
     def _calculate_discounts(self):
-        """Calculate discount information based on prices."""
-        if self.current_price is not None and self.original_price is not None:
-            if self.original_price > 0:
-                self.discount_amount = self.original_price - self.current_price
-                self.discount_percent = (self.discount_amount / self.original_price) * 100
-                self.has_discount = self.discount_amount > 0
-            else:
-                self.has_discount = False
-                self.discount_amount = 0.0
-                self.discount_percent = 0.0
-        else:
-            self.has_discount = False
+        """Calculate discount information based on prices with proper defaults."""
+        # Initialize defaults
+        self.has_discount = False
+        self.discount_amount = 0.0
+        self.discount_percent = 0.0
+
+        # Calculate discounts only if we have valid pricing data
+        if (self.current_price is not None and
+            self.original_price is not None and
+            self.original_price > 0):
+
+            self.discount_amount = round(self.original_price - self.current_price, 2)
+            self.discount_percent = round((self.discount_amount / self.original_price) * 100, 2)
+            self.has_discount = self.discount_amount > 0
+
+        # Ensure discount fields are never None
+        if self.discount_amount is None:
+            self.discount_amount = 0.0
+        if self.discount_percent is None:
+            self.discount_percent = 0.0
 
     def _clean_data(self):
-        """Clean and normalize data fields."""
+        """Clean and normalize data fields with proper discount handling."""
         # Clean price fields
         if self.current_price is not None:
             self.current_price = round(float(self.current_price), 2)
         if self.original_price is not None:
             self.original_price = round(float(self.original_price), 2)
-        if self.discount_percent is not None:
+
+        # Ensure discount fields are never None and properly formatted
+        if self.discount_percent is None:
+            self.discount_percent = 0.0
+        else:
             self.discount_percent = round(float(self.discount_percent), 4)
-        if self.discount_amount is not None:
+
+        if self.discount_amount is None:
+            self.discount_amount = 0.0
+        else:
             self.discount_amount = round(float(self.discount_amount), 2)
+
+        # Ensure has_discount is always boolean
+        if self.has_discount is None:
+            self.has_discount = False
+        else:
+            self.has_discount = bool(self.has_discount)
 
         # Clean text fields
         if self.name:
@@ -395,7 +416,7 @@ def validate_product_data(data: Dict[str, Any]) -> tuple[bool, List[str]]:
 
 
 def normalize_product_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize and clean raw product data.
+    """Normalize and clean raw product data with proper discount handling.
 
     Args:
         raw_data: Raw extracted data
@@ -413,7 +434,7 @@ def normalize_product_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
             normalized[field] = str(value).strip() if value else None
 
     # Price fields with proper type conversion
-    price_fields = ['current_price', 'original_price', 'discount_amount', 'discount_percent']
+    price_fields = ['current_price', 'original_price']
     for field in price_fields:
         value = raw_data.get(field)
         if value is not None:
@@ -422,11 +443,23 @@ def normalize_product_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
             except (ValueError, TypeError):
                 normalized[field] = None
 
-    # Boolean fields
-    for field in ['has_discount']:
+    # Discount fields with proper defaults to 0.0
+    for field in ['discount_amount', 'discount_percent']:
         value = raw_data.get(field)
         if value is not None:
-            normalized[field] = bool(value)
+            try:
+                normalized[field] = float(value)
+            except (ValueError, TypeError):
+                normalized[field] = 0.0
+        else:
+            normalized[field] = 0.0
+
+    # Boolean fields with proper defaults
+    has_discount = raw_data.get('has_discount')
+    if has_discount is not None:
+        normalized['has_discount'] = bool(has_discount)
+    else:
+        normalized['has_discount'] = False
 
     # Array fields
     if 'images' in raw_data:

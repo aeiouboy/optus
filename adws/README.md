@@ -210,7 +210,8 @@ Provides comprehensive web scraping capabilities using the crawl4ai library with
 ```
 
 **Features:**
-- **Multiple Output Formats**: JSON, CSV, and Markdown output
+- **Multiple Output Formats**: JSON, CSV, and Markdown output (CSV auto-forced to JSON for e-commerce URLs)
+- **E-commerce Detection**: Automatically detects e-commerce URLs and forces JSON output for product data compatibility
 - **Batch Processing**: Scrape multiple URLs concurrently with rate limiting
 - **Browser Support**: Handle JavaScript-heavy sites using browser automation
 - **Anti-Bot Measures**: Simulate user behavior, respect robots.txt, configurable delays
@@ -439,6 +440,7 @@ agents/
    - Enable `--respect-robots` to comply with website policies
    - Monitor success rates and adjust retry settings for unreliable targets
    - Use different output formats based on downstream processing needs
+   - **E-commerce URLs**: CSV format is automatically forced to JSON for product data compatibility
 
 6. **E-commerce Product Extraction Best Practices**:
    - Use `--test` flag to validate extraction quality before batch processing

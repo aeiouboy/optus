@@ -178,6 +178,39 @@ class Crawl4AIWrapper:
         except Exception as e:
             return False, f"URL parsing error: {e}"
 
+    def is_ecommerce_url(self, url: str) -> bool:
+        """Check if a URL belongs to supported e-commerce retailers.
+
+        Args:
+            url: URL to check
+
+        Returns:
+            True if the URL belongs to a supported e-commerce retailer, False otherwise
+        """
+        try:
+            # Extract domain from URL
+            parsed = urllib.parse.urlparse(url.lower())
+            domain = parsed.netloc.lower()
+
+            # Remove www. prefix if present
+            if domain.startswith('www.'):
+                domain = domain[4:]
+
+            # List of supported e-commerce retailers
+            supported_retailers = {
+                'thaiwatsadu.com',
+                'homepro.co.th',
+                'dohome.co.th',
+                'boonthavorn.com',
+                'globalhouse.co.th',
+                'megahome.co.th'
+            }
+
+            return domain in supported_retailers
+        except Exception as e:
+            logger.warning(f"Failed to check e-commerce URL {url}: {e}")
+            return False
+
     async def scrape_url(
         self,
         url: str,
@@ -412,7 +445,20 @@ class Crawl4AIWrapper:
 
         Returns:
             Formatted string
+
+        Note:
+            If any of the results contain e-commerce URLs from supported retailers
+            and format_type is 'csv', the format will be automatically forced to 'json'
+            to ensure proper structured data handling for e-commerce content.
         """
+        # Check if any results contain e-commerce URLs
+        has_ecommerce_urls = any(self.is_ecommerce_url(result.url) for result in results)
+
+        # Force JSON format for e-commerce URLs if CSV was requested
+        if has_ecommerce_urls and format_type.lower() == "csv":
+            print("Warning: E-commerce URLs detected. Forcing JSON output format instead of CSV for proper structured data handling.")
+            format_type = "json"
+
         if format_type.lower() == "json":
             return json.dumps([asdict(result) for result in results], indent=2)
 

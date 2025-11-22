@@ -45,17 +45,17 @@ from rich.table import Table
 from rich.rule import Rule
 from rich.progress import Progress, TaskID, BarColumn, TextColumn
 
-# Add the adw_modules directory to the path so we can import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "adw_modules"))
+# Add the parent directory to the path so we can import adw_modules as a package
+sys.path.insert(0, os.path.dirname(__file__))
 
-from crawl4ai_wrapper import (
+from adw_modules.crawl4ai_wrapper import (
     Crawl4AIWrapper,
     ScrapingConfig,
     ScrapingResult,
     create_simple_config,
 )
-from product_extractor import get_extractor
-from product_schemas import ProductData, validate_product_data
+from adw_modules.product_extractor import get_extractor
+from adw_modules.product_schemas import ProductData, validate_product_data
 
 # Output file name constants (matching other ADWs)
 OUTPUT_JSONL = "cc_raw_output.jsonl"

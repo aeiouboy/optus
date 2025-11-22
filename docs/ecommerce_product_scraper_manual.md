@@ -4,6 +4,8 @@
 
 The **E-commerce Product Scraper** is a powerful AI Developer Workflow (ADW) designed to extract structured product data from e-commerce websites. It outputs data in a standardized JSON format with comprehensive product fields including pricing, specifications, and metadata.
 
+> **🔧 Environment Requirement**: This project uses **uv** as the exclusive package manager and execution environment. All commands must use `uv run adws/adw_ecommerce_product_scraper.py`. Direct script execution without uv is not supported.
+
 ## Features
 
 - ✅ **All 18 Required Fields**: name, retailer, url, current_price, original_price, product_key, brand, model, sku, category, volume, dimensions, material, color, images, description, scraped_at, has_discount, discount_percent, discount_amount
@@ -19,11 +21,11 @@ The **E-commerce Product Scraper** is a powerful AI Developer Workflow (ADW) des
 ### Basic Usage
 ```bash
 # Single product scraping
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --url "https://www.thaiwatsadu.com/th/sku/60363373"
 
 # Batch scraping from file
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --urls-file product-urls.txt \
   --output-file results.json
 ```
@@ -31,14 +33,14 @@ The **E-commerce Product Scraper** is a powerful AI Developer Workflow (ADW) des
 ### Advanced Usage with Organized Output
 ```bash
 # Create organized structure with date-based folders
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --url "https://www.thaiwatsadu.com/th/sku/60363373" \
   --output-folder ./results/2025-11-22 \
   --organization date \
   --output-file thai-products.json
 
 # Job-ID based organization for batch processing
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --urls-file large-batch.txt \
   --output-folder ./results/ \
   --organization job-id
@@ -47,18 +49,43 @@ The **E-commerce Product Scraper** is a powerful AI Developer Workflow (ADW) des
 ## Installation
 
 ### Prerequisites
-- Python 3.10+
-- uv package manager
-- crawl4ai with browser support
+- Python 3.10+ (managed by uv)
+- uv package manager (required for execution)
+- crawl4ai with browser support (installed via uv)
 
-### Setup
+### Environment Setup with uv
+
+#### Install uv (if not already installed)
 ```bash
-# Make the script executable
-chmod +x adws/adw_ecommerce_product_scraper.py
+# Install uv using the official installer
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install dependencies (automated with script header)
-# Dependencies will be installed automatically on first run
+# Or install via pip
+pip install uv
+
+# Verify installation
+uv --version
 ```
+
+#### Project Setup
+```bash
+# Clone or navigate to the project directory
+cd /path/to/project
+
+# Install project dependencies and create virtual environment
+uv sync
+
+# Verify the scraper is working
+uv run adws/adw_ecommerce_product_scraper.py --help
+```
+
+#### Benefits of Using uv
+- **Consistent Environments**: Ensures the same Python version and dependencies across all systems
+- **Dependency Management**: Automatically handles package installation and version conflicts
+- **Fast Execution**: No need to activate virtual environments manually
+- **Reproducible Results**: Guarantees the same runtime environment for every execution
+
+**Important**: Always use `uv run adws/adw_ecommerce_product_scraper.py` to execute the scraper. Direct script execution without uv is not supported.
 
 ## Command Line Options
 
@@ -159,7 +186,7 @@ https://www.shopee.co.th/product-12345  # Electronics
 
 ### Example 1: Single Product Scraping
 ```bash
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --url "https://www.thaiwatsadu.com/th/sku/60363373" \
   --output-folder ./results/single-products \
   --organization date \
@@ -176,7 +203,7 @@ https://www.powerbuy.co.th/product-13579
 EOF
 
 # Run batch scraping
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --urls-file electronics-products.txt \
   --output-folder ./results/electronics \
   --organization date \
@@ -195,13 +222,13 @@ https://www.lazada.co.th/product-67890
 EOF
 
 # Set up daily cron job
-echo "0 9 * * * cd /path/to/project && ./adws/adw_ecommerce_product_scraper.py --urls-file daily-monitor.txt --output-folder ./monitoring/$(date +\%Y-%m-%d)" --organization date --output-file daily-products.json" | crontab -
+echo "0 9 * * * cd /path/to/project && uv run adws/adw_ecommerce_product_scraper.py --urls-file daily-monitor.txt --output-folder ./monitoring/\$(date +\%Y-%m-%d) --organization date --output-file daily-products.json" | crontab -
 ```
 
 ### Example 4: Price Monitoring
 ```bash
 # Monitor specific products for price changes
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --url "https://www.thaiwatsadu.com/th/sku/60363373" \
   --output-folder ./price-monitoring \
   --organization job-id \
@@ -306,7 +333,7 @@ results/
 ### Debugging Mode
 ```bash
 # Test mode with detailed output
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --url "https://example.com/product" \
   --test \
   --adw-id debug-test \
@@ -318,7 +345,7 @@ results/
 #### For Large Scale Scraping
 ```bash
 # Increase concurrency for faster processing
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --urls-file large-batch.txt \
   --max-concurrent 10 \
   --delay 0.5 \
@@ -328,7 +355,7 @@ results/
 #### For Rate-Limited Sites
 ```bash
 # Be respectful of server resources
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --urls-file sensitive-sites.txt \
   --max-concurrent 1 \
   --delay 5.0 \
@@ -354,6 +381,13 @@ results/
 2. **Use delays** between requests to avoid rate limiting
 3. **Monitor disk space** for large scraping jobs
 4. **Clean up temporary files** and outdated results
+
+### uv Environment Management
+1. **Always use `uv run`** for consistent execution environments
+2. **Run `uv sync`** after pulling updates to ensure dependencies are current
+3. **Use `uv run python`** for any additional Python scripts in data pipelines
+4. **Check uv version compatibility** when upgrading to newer versions
+5. **Leverage uv's caching** for faster consecutive runs
 
 ### Error Handling
 1. **Use appropriate retry attempts** for transient failures
@@ -421,17 +455,17 @@ for product_data in results:
 ### With Data Pipelines
 ```bash
 # Stage 1: Extract data
-./adws/adw_ecommerce_product_scraper.py \
+uv run adws/adw_ecommerce_product_scraper.py \
   --urls-file products-to-scrape.txt \
   --output-folder ./stage1/raw
 
 # Stage 2: Process and validate
-python scripts/validate_products.py \
+uv run python scripts/validate_products.py \
   --input ./stage1/raw/processed/cc_final_object.json \
   --output ./stage2/validated/
 
 # Stage 3: Analytics and reporting
-python scripts/analyze_products.py \
+uv run python scripts/analyze_products.py \
   --input ./stage2/validated/
 ```
 

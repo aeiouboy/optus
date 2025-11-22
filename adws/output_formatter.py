@@ -32,6 +32,7 @@ class OutputFormatter:
         else:
             self.thaiwatsadu_formatter = None
 
+        # Product field extraction patterns
         self.product_extractors = {
             'name': [
                 r'<title>([^<]+)</title>',
@@ -104,7 +105,7 @@ class OutputFormatter:
         }
 
     def extract_field(self, content: str, field_name: str) -> Optional[str]:
-        """Extract a specific field from content using multiple patterns."""
+        """Extract a specific field from content using multiple patterns with enhanced validation."""
         patterns = self.product_extractors.get(field_name, [])
 
         for pattern in patterns:
@@ -119,7 +120,137 @@ class OutputFormatter:
                 value = value.strip()
 
                 if value and len(value) > 0:
-                    return value
+                    # Apply field-specific validation and sanitization
+                    clean_value = self._validate_and_sanitize_field(value, field_name)
+                    if clean_value:
+                        return clean_value
+
+        return None
+
+    def _validate_and_sanitize_field(self, value: str, field_name: str) -> Optional[str]:
+        """Validate and sanitize field values to prevent contamination."""
+        if not value:
+            return None
+
+        # Remove HTML/CSS contamination
+        value = re.sub(r'<[^>]+>', ' ', value)  # Remove HTML tags
+        value = re.sub(r'class="[^"]*"', '', value)  # Remove CSS classes
+        value = re.sub(r'style="[^"]*"', '', value)  # Remove inline styles
+
+        # Remove URLs and domains from non-URL fields
+        if field_name not in ['url', 'images']:
+            url_patterns = [
+                r'https?://[^\s<>"\']+',
+                r'www\.[^\s<>"\']+',
+                r'[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s<>"\']*)?'
+            ]
+            for pattern in url_patterns:
+                value = re.sub(pattern, '', value)
+
+        # Remove JSON fragments
+        value = re.sub(r'\{[^}]*\}', '', value)
+        value = re.sub(r'\[[^\]]*\]', '', value)
+
+        # Field-specific validation
+        if field_name in ['dimensions', 'volume']:
+            return self._validate_dimension_field(value, field_name)
+        elif field_name == 'color':
+            return self._validate_color_field(value)
+        elif field_name == 'material':
+            return self._validate_material_field(value)
+        elif field_name in ['brand', 'model', 'sku']:
+            return self._validate_text_field(value, field_name)
+        else:
+            return self._validate_generic_field(value, field_name)
+
+    def _validate_dimension_field(self, value: str, field_name: str) -> Optional[str]:
+        """Validate dimension/volume fields."""
+        # Extract dimension patterns
+        if field_name == 'dimensions':
+            patterns = [
+                r'(\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?)',
+                r'(\d+(?:\.\d+)?\s*[x×]\s*\d+(?:\.\d+)?)',
+                r'(\d+(?:\.\d+)?)'
+            ]
+        else:  # volume
+            patterns = [
+                r'(\d+(?:\.\d+)?)',
+            ]
+
+        for pattern in patterns:
+            match = re.search(pattern, value)
+            if match:
+                clean_value = match.group(1).strip()
+                if clean_value and len(clean_value) <= 200:
+                    return clean_value
+
+        return None
+
+    def _validate_color_field(self, value: str) -> Optional[str]:
+        """Validate color field to prevent CSS color codes."""
+        # Remove CSS color codes
+        color_patterns = [
+            r'#[0-9a-fA-F]{3,6}',
+            r'rgb\([^)]+\)',
+            r'rgba\([^)]+\)',
+            r'hsl\([^)]+\)',
+        ]
+
+        for pattern in color_patterns:
+            value = re.sub(pattern, '', value, flags=re.IGNORECASE)
+
+        # Clean up and validate
+        value = ' '.join(value.split()).strip()
+
+        if (value and
+            len(value) >= 2 and
+            len(value) <= 50 and
+            not value.startswith(('#', 'rgb', 'hsl')) and
+            not re.match(r'^[0-9a-fA-F]{3,6}$', value)):
+            return value
+
+        return None
+
+    def _validate_material_field(self, value: str) -> Optional[str]:
+        """Validate material field."""
+        # Remove common prefixes
+        value = re.sub(r'วัสดุ|Material|ผลิตจาก', '', value, flags=re.IGNORECASE)
+        value = ' '.join(value.split()).strip()
+
+        if value and len(value) >= 2 and len(value) <= 100:
+            return value
+
+        return None
+
+    def _validate_text_field(self, value: str, field_name: str) -> Optional[str]:
+        """Validate text fields like brand, model, sku."""
+        # Remove contamination
+        value = re.sub(r'[{}[\]"\',:;\\<>]', '', value)
+        value = value.strip()
+
+        # Field-specific validation
+        max_length = {'brand': 100, 'model': 200, 'sku': 50}.get(field_name, 100)
+
+        if (value and
+            len(value) >= 2 and
+            len(value) <= max_length and
+            not value.lower().startswith(('http', 'www', 'data:', 'class=', 'style='))):
+            return value
+
+        return None
+
+    def _validate_generic_field(self, value: str, field_name: str) -> Optional[str]:
+        """Generic field validation."""
+        max_length = {
+            'name': 500,
+            'description': 2000,
+            'category': 100
+        }.get(field_name, 100)
+
+        value = value.strip()
+
+        if value and len(value) <= max_length:
+            return value
 
         return None
 
@@ -414,8 +545,45 @@ class OutputFormatter:
         }
         return json.dumps(summary, indent=2, ensure_ascii=False)
 
+    def is_ecommerce_data(self, results: List[Dict[str, Any]]) -> bool:
+        """Check if the results contain e-commerce product data.
+
+        Returns True if e-commerce indicators are detected in the results,
+        such as product prices, SKUs, brands, or other product-specific fields.
+        """
+        if not results:
+            return False
+
+        ecommerce_indicators = [
+            'current_price', 'original_price', 'product_key', 'sku',
+            'brand', 'model', 'category', 'has_discount'
+        ]
+
+        for result in results:
+            # Check for e-commerce indicators in the result
+            found_indicators = 0
+            for indicator in ecommerce_indicators:
+                value = result.get(indicator)
+                if value is not None and value != '' and value != []:
+                    found_indicators += 1
+
+            # If we find 3 or more e-commerce indicators, consider it e-commerce data
+            if found_indicators >= 3:
+                return True
+
+        return False
+
     def _format_csv(self, results: List[Dict[str, Any]]) -> str:
-        """Format results as CSV matching the exact data structure."""
+        """Format results as CSV matching the exact data structure with proper field handling.
+
+        If e-commerce data is detected, automatically redirects to JSON format
+        instead of CSV to preserve structured product information.
+        """
+        # Check for e-commerce data and redirect to JSON if detected
+        if self.is_ecommerce_data(results):
+            print("Warning: E-commerce data detected. Redirecting to JSON format to preserve structured product information.")
+            return self.format_results(results, "structured")
+
         import csv
         import io
 
@@ -433,31 +601,42 @@ class OutputFormatter:
         writer.writeheader()
 
         for result in results:
-            # Convert images list to string
-            images_str = '; '.join(result.get('images', [])) if result.get('images') else ''
+            # Convert images list to string with proper escaping
+            images_list = result.get('images', [])
+            if images_list:
+                # Clean image URLs and join with semicolons
+                cleaned_images = [str(img).strip() for img in images_list if img and str(img).strip()]
+                images_str = '; '.join(cleaned_images)
+            else:
+                images_str = ''
 
-            writer.writerow({
-                'name': result.get('name', ''),
-                'retailer': result.get('retailer', ''),
-                'url': result.get('url', ''),
-                'current_price': result.get('current_price', ''),
-                'original_price': result.get('original_price', ''),
-                'product_key': result.get('product_key', ''),
-                'brand': result.get('brand', ''),
-                'model': result.get('model', ''),
-                'sku': result.get('sku', ''),
-                'category': result.get('category', ''),
-                'volume': result.get('volume', ''),
-                'dimensions': result.get('dimensions', ''),
-                'material': result.get('material', ''),
-                'color': result.get('color', ''),
-                'images': images_str,
-                'description': result.get('description', ''),
-                'scraped_at': result.get('scraped_at', ''),
-                'has_discount': result.get('has_discount', False),
-                'discount_percent': result.get('discount_percent', ''),
-                'discount_amount': result.get('discount_amount', '')
-            })
+            # Clean and validate all text fields to prevent contamination
+            cleaned_fields = {}
+            for field in headers:
+                if field == 'images':
+                    cleaned_fields[field] = images_str
+                elif field == 'has_discount':
+                    cleaned_fields[field] = bool(result.get(field, False))
+                elif field in ['current_price', 'original_price', 'discount_percent', 'discount_amount']:
+                    # Handle numeric fields properly
+                    value = result.get(field)
+                    cleaned_fields[field] = value if value is not None else (0.0 if field in ['discount_percent', 'discount_amount'] else '')
+                else:
+                    # Clean text fields to prevent HTML/CSS contamination
+                    value = result.get(field, '')
+                    if value:
+                        cleaned_value = self._validate_and_sanitize_field(str(value), field)
+                        cleaned_fields[field] = cleaned_value if cleaned_value is not None else ''
+                    else:
+                        cleaned_fields[field] = ''
+
+            # Ensure discount defaults are properly set
+            if cleaned_fields['discount_percent'] == '':
+                cleaned_fields['discount_percent'] = 0.0
+            if cleaned_fields['discount_amount'] == '':
+                cleaned_fields['discount_amount'] = 0.0
+
+            writer.writerow(cleaned_fields)
 
         return output.getvalue()
 

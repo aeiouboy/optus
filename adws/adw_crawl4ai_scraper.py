@@ -86,6 +86,32 @@ from crawl4ai_wrapper import (
 )
 from utils import format_agent_status, format_worktree_status
 
+
+def is_ecommerce_url(url: str) -> bool:
+    """Check if a URL belongs to a supported e-commerce retailer.
+
+    Args:
+        url: URL to check
+
+    Returns:
+        True if URL is from a supported e-commerce retailer
+    """
+    if not url:
+        return False
+
+    # List of supported e-commerce retailers
+    ecommerce_domains = [
+        'thaiwatsadu.com',
+        'homepro.co.th',
+        'dohome.co.th',
+        'boonthavorn.com',
+        'globalhouse.co.th',
+        'megahome.co.th'
+    ]
+
+    url_lower = url.lower()
+    return any(domain in url_lower for domain in ecommerce_domains)
+
 # Try to import the new result manager
 try:
     sys.path.insert(0, "/Users/tachongrak/Projects/Optus/apps/output/scraping/utils")
@@ -769,7 +795,7 @@ def generate_summary_stats(results: List[ScrapingResult]) -> Dict[str, Any]:
     "--output-format",
     type=click.Choice(["json", "csv", "markdown"]),
     default="json",
-    help="Output format for results"
+    help="Output format for results (Note: JSON format is forced for e-commerce URLs)"
 )
 @click.option(
     "--output-file",
@@ -930,6 +956,14 @@ def main(
 
     if not urls:
         raise click.ClickException("No URLs found to scrape")
+
+    # Check if any URLs are e-commerce and force JSON output if needed
+    has_ecommerce_urls = any(is_ecommerce_url(url) for url in urls)
+    if has_ecommerce_urls and output_format.lower() == "csv":
+        console.print("[yellow]⚠️  E-commerce URLs detected. Forcing JSON output format for product data compatibility.[/yellow]")
+        output_format = "json"
+        if output_file and output_file.endswith('.csv'):
+            output_file = output_file[:-4] + '.json'
 
     # Set default output file if not provided
     if not output_file:
