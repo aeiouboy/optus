@@ -155,7 +155,9 @@ class ProductExtractor:
         for pattern in patterns:
             match = re.search(pattern, html_content, re.DOTALL | re.IGNORECASE)
             if match:
-                name = self._clean_text(match.group(1))
+                # Use group 1 if available, otherwise group 0
+                val = match.group(1) if match.re.groups > 0 else match.group(0)
+                name = self._clean_text(val)
                 if name and len(name) > 3:  # Minimum length check
                     return name
 
@@ -174,7 +176,9 @@ class ProductExtractor:
         for pattern in patterns:
             match = re.search(pattern, html_content, re.DOTALL | re.IGNORECASE)
             if match:
-                desc = self._clean_text(match.group(1))
+                # Use group 1 if available, otherwise group 0
+                val = match.group(1) if match.re.groups > 0 else match.group(0)
+                desc = self._clean_text(val)
                 if desc and len(desc) > 10:
                     return desc
 
@@ -193,7 +197,9 @@ class ProductExtractor:
         for pattern in patterns:
             match = re.search(pattern, html_content, re.IGNORECASE)
             if match:
-                brand = self._clean_text(match.group(1))
+                # Use group 1 if available, otherwise group 0
+                val = match.group(1) if match.re.groups > 0 else match.group(0)
+                brand = self._clean_text(val)
                 if brand and len(brand) > 1:
                     # Additional sanitization to prevent JSON contamination
                     brand = self._sanitize_brand_field(brand)
@@ -214,7 +220,9 @@ class ProductExtractor:
         for pattern in patterns:
             match = re.search(pattern, html_content, re.IGNORECASE)
             if match:
-                model = self._clean_text(match.group(1))
+                # Use group 1 if available, otherwise group 0
+                val = match.group(1) if match.re.groups > 0 else match.group(0)
+                model = self._clean_text(val)
                 if model and len(model) > 1:
                     # Additional sanitization to prevent JSON contamination
                     model = self._sanitize_text_field(model, max_length=200)
@@ -236,7 +244,9 @@ class ProductExtractor:
         for pattern in patterns:
             match = re.search(pattern, html_content, re.IGNORECASE)
             if match:
-                sku = self._clean_text(match.group(1))
+                # Use group 1 if available, otherwise group 0
+                val = match.group(1) if match.re.groups > 0 else match.group(0)
+                sku = self._clean_text(val)
                 if sku and len(sku) > 1:
                     # Additional sanitization to prevent JSON contamination
                     sku = self._sanitize_text_field(sku)
@@ -270,7 +280,9 @@ class ProductExtractor:
         for pattern in patterns:
             match = re.search(pattern, html_content, re.DOTALL | re.IGNORECASE)
             if match:
-                category = self._clean_text(match.group(1))
+                # Use group 1 if available, otherwise group 0
+                val = match.group(1) if match.re.groups > 0 else match.group(0)
+                category = self._clean_text(val)
                 if category and len(category) > 1:
                     # If it's breadcrumb, take the last part
                     if '>' in category:
@@ -607,6 +619,133 @@ class HomeProExtractor(ProductExtractor):
         return product
 
 
+class BoonthavornExtractor(ProductExtractor):
+    """Specialized extractor for Boonthavorn website using JSON-LD."""
+
+    def extract_from_html(self, html_content: str, url: str = None) -> Optional[ProductData]:
+        """Extract product data specifically from Boonthavorn using JSON-LD and HTML parsing."""
+        product = ProductData(url=url)
+        
+        # 1. Try to extract from JSON-LD (Structured Data) - Most reliable for basic info
+        json_ld_data = self._extract_json_ld(html_content)
+        
+        if json_ld_data:
+            product.name = json_ld_data.get('name')
+            product.description = json_ld_data.get('description')
+            product.brand = json_ld_data.get('brand', {}).get('name') if isinstance(json_ld_data.get('brand'), dict) else json_ld_data.get('brand')
+            # Only use 'sku' field from JSON-LD. Avoid productID as it's often internal.
+            product.sku = str(json_ld_data.get('sku') or '')
+            
+            offers = json_ld_data.get('offers', {})
+            if isinstance(offers, dict):
+                price = offers.get('price')
+                if price:
+                    product.current_price = float(price)
+                    product.currency = offers.get('priceCurrency', 'THB')
+            
+            image = json_ld_data.get('image')
+            if image:
+                if isinstance(image, list):
+                    product.images = image
+                elif isinstance(image, str):
+                    product.images = [image]
+
+        # 2. Extract attributes from "Quick Info" section (HTML)
+        # Pattern: <label class="quickInfo-infoLabel-WkG">Label</label><label class="quickInfo-infoValue-NpP">Value</label>
+        # We use a simple regex to find all label-value pairs
+        quick_info_pattern = r'class="quickInfo-infoLabel-[^"]+">([^<]+)</label><label class="quickInfo-infoValue-[^"]+">([^<]+)</label>'
+        attributes = dict(re.findall(quick_info_pattern, html_content))
+        
+        if attributes:
+            if 'สี' in attributes and not product.color:
+                product.color = attributes['สี'].strip()
+            if 'ขนาดสินค้า' in attributes:
+                product.dimensions = attributes['ขนาดสินค้า'].strip()
+            if 'หน่วยนับ' in attributes:
+                product.volume = attributes['หน่วยนับ'].strip() # Mapping unit to volume field
+            if 'ยี่ห้อ' in attributes and not product.brand:
+                product.brand = attributes['ยี่ห้อ'].strip()
+            if 'รหัสสินค้า' in attributes and (not product.sku or product.sku == 'None'):
+                product.sku = attributes['รหัสสินค้า'].strip()
+
+        # 3. Extract Original Price (if exists)
+        # Look for productPrice-oldPrice... > price-root... > ... value
+        # This is tricky with regex due to nested spans. 
+        # Simplified approach: look for the specific old price structure
+        if not product.original_price:
+            # Try to find the old price block
+            old_price_match = re.search(r'productPrice-oldPrice.*?price-currency-[^>]+>บาท</span>((?:<span>[^<]+</span>)+)', html_content)
+            if old_price_match:
+                raw_price = old_price_match.group(1)
+                # Remove tags and commas
+                clean_price = re.sub(r'<[^>]+>|,', '', raw_price)
+                try:
+                    product.original_price = float(clean_price)
+                except ValueError:
+                    pass
+
+        # 4. Fallback/Supplement with base HTML extraction
+        html_product = super().extract_from_html(html_content, url)
+        if html_product:
+            if not product.name: product.name = html_product.name
+            if not product.description: product.description = html_product.description
+            if not product.images: product.images = html_product.images
+            
+            # Use base extraction for material if not found yet
+            if html_product.material and not product.material:
+                product.material = html_product.material
+
+        # 5. Extract Model from Name or Description
+        if product.name and 'รุ่น' in product.name:
+            model_match = re.search(r'รุ่น\s+([^\s]+)', product.name)
+            if model_match:
+                product.model = model_match.group(1)
+        elif product.description and 'รุ่น' in product.description:
+            model_match = re.search(r'รุ่น\s+([^\s]+)', product.description)
+            if model_match:
+                product.model = model_match.group(1)
+
+        # 6. URL-based SKU fallback
+        if url and (not product.sku or product.sku == 'None'):
+            sku_match = re.search(r'-(\d+)$', url)
+            if sku_match:
+                product.sku = sku_match.group(1)
+
+        # Calculate discount
+        if product.current_price and product.original_price:
+            if product.original_price > product.current_price:
+                product.has_discount = True
+                product.discount_amount = product.original_price - product.current_price
+                product.discount_percent = (product.discount_amount / product.original_price) * 100
+
+        product.retailer = "Boonthavorn"
+        return product
+
+    def _extract_json_ld(self, html_content: str) -> Optional[Dict[str, Any]]:
+        """Extract and parse JSON-LD data from HTML."""
+        try:
+            # Regex to find the script tag content
+            pattern = r'<script type="application/ld\+json">(.*?)</script>'
+            matches = re.finditer(pattern, html_content, re.DOTALL)
+            
+            for match in matches:
+                try:
+                    data = json.loads(match.group(1))
+                    # We are looking for @type Product
+                    if isinstance(data, dict) and data.get('@type') == 'Product':
+                        return data
+                    # Sometimes it's a list of objects
+                    elif isinstance(data, list):
+                        for item in data:
+                            if isinstance(item, dict) and item.get('@type') == 'Product':
+                                return item
+                except json.JSONDecodeError:
+                    continue
+        except Exception:
+            pass
+        return None
+
+
 def get_extractor(url: str) -> ProductExtractor:
     """Get the appropriate extractor for the given URL."""
     domain = urlparse(url).netloc.lower()
@@ -615,42 +754,8 @@ def get_extractor(url: str) -> ProductExtractor:
         return ThaiWatsaduExtractor(url)
     elif 'homepro.co.th' in domain:
         return HomeProExtractor(url)
+    elif 'boonthavorn.com' in domain:
+        return BoonthavornExtractor(url)
     else:
         return ProductExtractor(url)
 
-    def _extract_retailer_from_url(self, url: str) -> str:
-        """Extract retailer name from URL domain."""
-        try:
-            from urllib.parse import urlparse
-            parsed = urlparse(url)
-            domain = parsed.netloc.lower()
-
-            # Remove www. prefix
-            domain = domain.replace('www.', '')
-
-            # Known retailer mappings
-            retailer_mappings = {
-                'thaiwatsadu.com': 'Thai Watsadu',
-                'homepro.co.th': 'HomePro',
-                'lazada.co.th': 'Lazada',
-                'shopee.co.th': 'Shopee',
-                'central.co.th': 'Central',
-                'powerbuy.co.th': 'Power Buy',
-                'jaymart.co.th': 'Jaymart',
-                'banana-it': 'Banana IT',
-                'advice.co.th': 'Advice',
-            }
-
-            for domain_pattern, retailer in retailer_mappings.items():
-                if domain_pattern in domain:
-                    return retailer
-
-            # Extract domain name as fallback
-            domain_parts = domain.split('.')
-            if len(domain_parts) >= 2:
-                return domain_parts[-2].title()
-
-            return domain.title()
-
-        except Exception:
-            return "Unknown Retailer"

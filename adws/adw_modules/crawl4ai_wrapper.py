@@ -22,6 +22,14 @@ import logging
 try:
     from crawl4ai import AsyncWebCrawler
     from crawl4ai.extraction_strategy import LLMExtractionStrategy, JsonCssExtractionStrategy
+    try:
+        from crawl4ai.llm_config import LLMConfig
+    except ImportError:
+        try:
+            from crawl4ai.extraction_strategy import LLMConfig
+        except ImportError:
+            LLMConfig = None
+    
     from crawl4ai.chunking_strategy import RegexChunking
     CRAWL4AI_AVAILABLE = True
 except ImportError:
@@ -30,6 +38,7 @@ except ImportError:
     LLMExtractionStrategy = None
     JsonCssExtractionStrategy = None
     RegexChunking = None
+    LLMConfig = None
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -77,6 +86,7 @@ class ScrapingResult:
     error_message: Optional[str] = None
     timestamp: float = 0
     status_code: Optional[int] = None
+    extracted_content: Optional[str] = None
 
     def __post_init__(self):
         if self.links is None:
@@ -171,13 +181,17 @@ class Crawl4AIWrapper:
     async def scrape_url(
         self,
         url: str,
-        extraction_strategy: Optional[Any] = None
+        extraction_strategy: Optional[Any] = None,
+        wait_for: Optional[str] = None,
+        css_selector: Optional[str] = None
     ) -> ScrapingResult:
         """Scrape a single URL.
 
         Args:
             url: URL to scrape
             extraction_strategy: Optional extraction strategy
+            wait_for: Optional JavaScript condition to wait for
+            css_selector: Optional CSS selector to wait for
 
         Returns:
             ScrapingResult with scraped data
@@ -215,13 +229,13 @@ class Crawl4AIWrapper:
                     // Wait for dynamic content to load
                     await new Promise(resolve => setTimeout(resolve, 2000));
                     """ if self.config.use_browser else None,
-                    wait_for="""
+                    wait_for=wait_for or ("""
                     () => document.readyState === 'complete' &&
                     document.body && document.body.innerText.length > 100
-                    """ if self.config.use_browser else None,
-                    css_selector="""
+                    """ if self.config.use_browser else None),
+                    css_selector=css_selector or ("""
                     body
-                    """ if self.config.use_browser else None,
+                    """ if self.config.use_browser else None),
                     simulate_user=self.config.simulate_user,
                     override_navigator=True,
                 )
@@ -232,6 +246,7 @@ class Crawl4AIWrapper:
                     result.markdown = str(crawl_result.markdown) if crawl_result.markdown else None
                     result.html = crawl_result.html
                     result.status_code = getattr(crawl_result, 'status_code', 200)
+                    result.extracted_content = getattr(crawl_result, 'extracted_content', None)
 
                     # Extract links
                     if self.config.include_links and crawl_result.links:
@@ -361,7 +376,8 @@ class Crawl4AIWrapper:
         self,
         instruction: str,
         provider: str = "openai",
-        api_token: Optional[str] = None
+        api_token: Optional[str] = None,
+        **kwargs
     ) -> Any:
         """Create an LLM extraction strategy.
 
@@ -369,6 +385,7 @@ class Crawl4AIWrapper:
             instruction: Extraction instruction for the LLM
             provider: LLM provider (openai, huggingface, etc.)
             api_token: API token for the provider
+            **kwargs: Additional arguments for the strategy (e.g. base_url, model)
 
         Returns:
             LLMExtractionStrategy instance
@@ -376,9 +393,12 @@ class Crawl4AIWrapper:
         if not LLMExtractionStrategy:
             raise ImportError("LLMExtractionStrategy not available")
 
+        # Create LLMConfig with provider, token, and extra args
+        # We pass kwargs (like base_url, model) to LLMConfig
+        llm_config = LLMConfig(provider=provider, api_token=api_token, **kwargs)
+
         return LLMExtractionStrategy(
-            provider=provider,
-            api_token=api_token,
+            llm_config=llm_config,
             instruction=instruction,
             verbose=self.config.verbose
         )

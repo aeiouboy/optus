@@ -168,12 +168,38 @@ def load_urls_from_file(file_path: str) -> List[str]:
         with open(file_path, 'r', encoding='utf-8') as f:
             urls = []
             line_num = 0
+            # Check if file is CSV
+            is_csv = file_path.lower().endswith('.csv')
+            
             for line in f:
                 line_num += 1
-                url = line.strip()
-                if url and not url.startswith('#'):  # Skip empty lines and comments
+                line = line.strip()
+                
+                # Skip empty lines and comments
+                if not line or line.startswith('#'):
+                    continue
+                    
+                # Handle CSV format
+                if is_csv:
+                    # Skip header row if it contains 'url' or 'link'
+                    if line_num == 1 and ('url' in line.lower() or 'link' in line.lower()):
+                        continue
+                        
+                    # Split by comma and take the last part as URL (assuming format: name,url)
+                    parts = line.split(',')
+                    if len(parts) > 1:
+                        url = parts[-1].strip()
+                    else:
+                        url = line
+                else:
+                    url = line
+
+                if url:
                     if not (url.startswith('http://') or url.startswith('https://')):
-                        raise click.ClickException(f"Invalid URL at line {line_num} in {file_path}: {url}")
+                        # Only raise error if it's not a CSV header we missed
+                        if not (is_csv and line_num == 1):
+                            raise click.ClickException(f"Invalid URL at line {line_num} in {file_path}: {url}")
+                        continue
                     urls.append(url)
         return urls
     except UnicodeDecodeError:
@@ -185,8 +211,13 @@ def load_urls_from_file(file_path: str) -> List[str]:
 async def extract_product_data(url: str, wrapper: Crawl4AIWrapper, adw_id: str, console: Console) -> Optional[ProductData]:
     """Extract product data from a single URL."""
     try:
+        # Determine specific wait conditions
+        css_selector = None
+        if 'boonthavorn.com' in url:
+            css_selector = ".productFullDetail-productName-6ZL"
+
         # Scrape the URL
-        result = await wrapper.scrape_url(url)
+        result = await wrapper.scrape_url(url, css_selector=css_selector)
         
         if not result.success:
             print_status_panel(console, f"Failed to scrape: {result.error_message}", adw_id, "extraction", "error", url)
@@ -200,6 +231,15 @@ async def extract_product_data(url: str, wrapper: Crawl4AIWrapper, adw_id: str, 
         # Extract product data
         product = extractor.extract_from_html(result.html or result.content, url)
         
+        # LLM Fallback Logic - TEMPORARILY DISABLED due to LLMConfig ForwardRef issue in crawl4ai
+        # The primary extraction with JSON-LD and Quick Info parsing should be sufficient
+        # TODO: Re-enable once LLMConfig import issue is resolved
+        # if not product or not product.name or not product.current_price:
+        #     api_key = "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"
+        #     if api_key:
+        #         print_status_panel(console, "Primary extraction incomplete. Attempting LLM fallback (OpenRouter)...", adw_id, "extraction", "warning", url)
+        #         # ... (LLM fallback code commented out)
+
         if product:
             print_status_panel(console, f"Successfully extracted: {product.name[:50]}...", adw_id, "extraction", "success", url)
             return product
@@ -483,24 +523,40 @@ def main(
 
                         async def scrape_with_semaphore(url: str) -> Optional[ProductData]:
                             async with semaphore:
-                                product = await extract_product_data(url, wrapper, adw_id, console)
-                                # Add delay between requests
-                                if delay > 0:
-                                    await asyncio.sleep(delay)
-                                return product
+                                try:
+                                    product = await extract_product_data(url, wrapper, adw_id, console)
+                                    # Add delay between requests
+                                    if delay > 0:
+                                        await asyncio.sleep(delay)
+                                    return product
+                                finally:
+                                    # Update progress regardless of success/failure
+                                    progress.advance(task_id)
 
                         # Process all URLs concurrently
                         tasks = [scrape_with_semaphore(url) for url in urls]
-                        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-                        # Process results
-                        for i, result in enumerate(results):
-                            progress.update(task_id, completed=min(i + 1, len(urls)))
-                            
-                            if isinstance(result, Exception):
-                                console.print(f"[red]Error processing URL {urls[i]}: {str(result)}[/red]")
-                            elif result is not None:
-                                products.append(result)
+                        
+                        # Use as_completed to process results as they finish
+                        for future in asyncio.as_completed(tasks):
+                            try:
+                                result = await future
+                                if result:
+                                    products.append(result)
+                                    
+                                    # Incremental save
+                                    try:
+                                        current_data = [p.to_dict() for p in products]
+                                        # Ensure directory exists (in case it wasn't created yet)
+                                        os.makedirs(os.path.dirname(output_file_full_path), exist_ok=True)
+                                        with open(output_file_full_path, 'w', encoding='utf-8') as f:
+                                            json.dump(current_data, f, ensure_ascii=False, indent=2)
+                                    except Exception as e:
+                                        console.print(f"[yellow]Warning: Failed to save incremental results: {e}[/yellow]")
+                                        
+                                progress.advance(task_id)
+                            except Exception as e:
+                                console.print(f"[red]Error in scraping task: {str(e)}[/red]")
+                                progress.advance(task_id)
 
                     return products
 
@@ -545,6 +601,7 @@ def main(
 
         # Save results to file
         print_status_panel(console, f"Saving results to {output_file_full_path}", adw_id, "output")
+        os.makedirs(os.path.dirname(output_file_full_path), exist_ok=True)
         with open(output_file_full_path, 'w', encoding='utf-8') as f:
             json.dump(products_data, f, ensure_ascii=False, indent=2)
 
