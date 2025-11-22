@@ -1,102 +1,136 @@
-# Multi Agent - Todone
-> A multi-agent task delegation system for automated development workflows
+# Optus - Multi-Agent E-commerce Scraping Platform
 
-## Overview
+A sophisticated multi-agent task delegation system for automated e-commerce data extraction workflows.
 
-This system orchestrates multiple Claude Code agents to work on parallel development tasks across different git worktrees, automatically processing tasks from a central task list (`tasks.md`) and updating their status as work progresses.
+---
 
-## How It Works
+## 📁 Project Structure
 
-### Task Management System
+```
+optus/
+├── adws/                      # AI Developer Workflows (scraping scripts)
+│   ├── adw_modules/          # Shared modules (extractors, wrappers)
+│   └── *.py                  # Individual workflow scripts
+├── inputs/                    # Input data (URLs, CSVs)
+│   └── ecommerce/            # E-commerce retailer URLs
+├── apps/output/              # Scraping results
+│   ├── by_list/              # Organized by date/time
+│   ├── by_url/               # Organized by domain
+│   └── scraping/             # General scraping outputs
+├── docs/                      # Documentation
+│   ├── reports/              # Analysis reports
+│   └── tasks.md              # Task tracking
+├── debug_tools/              # Debugging & analysis scripts
+├── tests/                     # Test data & utilities
+│   └── samples/              # HTML samples for testing
+├── scripts/                   # Utility scripts
+├── examples/                  # Example/one-off scrapers
+└── specs/                     # Schema specifications
 
-The system uses `tasks.md` to track development tasks organized by git worktree:
-
-```markdown
-## Git Worktree feature-auth
-[] Task description                           # Pending task
-[🟡, adw_12345] Task in progress              # Agent working (ADW ID tracked)
-[✅ abc123, adw_12345] Completed task         # Success with commit hash
-[❌, adw_12345] Failed task // Failed: Error  # Failed with error reason
-[⏰] Blocked task                              # Waits for previous tasks
+Config Files:
+├── .env.sample               # Environment variables template
+├── .gitignore               # Git ignore rules
+├── .mcp.json                # MCP configuration
+├── .python-version          # Python version
+├── pyproject.toml           # Project dependencies
+└── uv.lock                  # UV lock file
 ```
 
-### Multi-Agent Workflow
+---
 
-1. **Cron Trigger** (`adw_triggers/adw_trigger_cron_todone.py`)
-   - Scans `tasks.md` for pending tasks
-   - Spawns parallel agents for different worktrees
-   - Respects task dependencies and blocking
+## 🚀 Quick Start
 
-2. **Task Processing Workflows**
-   - `adw_build_update_task.py` - Simple build and update workflow
-   - `adw_plan_implement_update_task.py` - Complex plan-build-update workflow
-   - Tasks can specify workflow with tags: `{opus, adw_plan_implement_update_task}`
+### 1. Install Dependencies
+```bash
+uv sync
+```
 
-3. **Status Updates**
-   - Real-time panel-based status messages with timestamps
-   - ADW ID and worktree tracking in all outputs
-   - Automatic task status updates in `tasks.md`
+### 2. Run E-commerce Scraper
+```bash
+./adws/adw_ecommerce_product_scraper.py \
+  --urls-file inputs/ecommerce/thaiwatsadu_urls.csv \
+  --output-file output/products.json
+```
 
-## Codebase Structure
+### 3. Test All Retailers
+```bash
+./debug_tools/test_all_retailers.sh
+```
 
-### Agentic Layer
+---
 
-The agent layer orchestrates AI-powered development workflows:
+## 📊 Supported Retailers
 
-- `.claude/commands/` - Slash command templates for Claude Code
-- `adws/` - AI Developer Workflows (Python orchestration scripts)
-- `specs/` - Feature specifications and implementation plans
-- `tasks.md` - Central task tracking file
+| Retailer | Status | Success Rate | Notes |
+|----------|--------|--------------|-------|
+| Thai Watsadu | ✅ Production | 100% | Perfect extraction |
+| HomePro | ✅ Production | 100% | Perfect extraction |
+| DoHome | ✅ Production | 100% | Perfect extraction |
+| Boonthavorn | ⚠️ Review CSV | 24% | 76% invalid URLs |
+| Global House | ⚠️ Review CSV | 70% | Some 404s |
+| Mega Home | ⚠️ Review CSV | 40% | URL quality issues |
 
-### Application Layer
+---
 
-The target codebase that agents operate on:
+## 🛠️ Key Features
 
-- `apps/` - Application code (e.g., sentiment_classification)
+- **JSON-LD Extraction**: Structured data parsing for accuracy
+- **Multi-Retailer Support**: Specialized extractors per retailer
+- **Incremental Saving**: Real-time results during scraping
+- **Progress Tracking**: Rich console output with ETAs
+- **Error Handling**: Retry logic and detailed error reporting
+- **Discount Calculation**: Auto-calculates discount % and amount
 
-## Quick Start
+---
 
-1. **Set up environment**:
-   ```bash
-   cp .env.sample .env
-   # Add your ANTHROPIC_API_KEY
-   ```
+## 📖 Documentation
 
-2. **Add tasks to `tasks.md`**:
-   ```markdown
-   ## Git Worktree enhance-model
-   [] Add cross-validation to sentiment classifier
-   [] Implement ensemble model {opus, adw_plan_implement_update_task}
-   ```
+- **[Extraction Report](docs/reports/EXTRACTION_REPORT.md)**: Detailed analysis of Boonthavorn extraction
+- **[Multi-Retailer Test](docs/reports/MULTI_RETAILER_TEST_RESULTS.md)**: Cross-retailer validation results
+- **[ADW README](adws/README.md)**: AI Developer Workflows documentation
+- **[Debug Tools](debug_tools/README.md)**: Testing utilities guide
 
-3. **Run the cron trigger**:
-   ```bash
-   ./adws/adw_triggers/adw_trigger_cron_todone.py
-   ```
+---
 
-The system will automatically:
-- Create worktrees as needed
-- Process tasks in parallel
-- Update task status in real-time
-- Handle dependencies and failures
+## 🔧 Development
 
-## 12 Leverage Points of Agentic Coding
+### Run Tests
+```bash
+# Test specific retailer
+python3 debug_tools/test_extractor.py
 
-### In Agent (Core Four)
+# Analyze results
+python3 debug_tools/analyze_results.py
+```
 
-1. Context
-2. Model
-3. Prompt
-4. Tools
+### Debug Failing URLs
+```bash
+python3 debug_tools/test_failed_url.py
+```
 
-### Through Agent
+---
 
-5. Standard Output
-6. Types
-7. Docs
-8. Tests
-9. Architecture
-10. Plans
-11. Templates
-12. AI Developer Workflows
+## 📝 Recent Updates
 
+### 2025-11-22: Enhanced Boonthavorn Extraction
+- ✅ Implemented JSON-LD structured data parsing
+- ✅ Added Quick Info section extraction
+- ✅ CSS selector-based page load waiting
+- ✅ Auto-discount calculation
+- ✅ Multi-field extraction (color, dimensions, volume, etc.)
+- ✅ 100% accuracy on valid product URLs
+
+---
+
+## 🤝 Contributing
+
+1. Create feature branch
+2. Make changes
+3. Test with `debug_tools/test_all_retailers.sh`
+4. Submit PR
+
+---
+
+## 📄 License
+
+Private project - All rights reserved

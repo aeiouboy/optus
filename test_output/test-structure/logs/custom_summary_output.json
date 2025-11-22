@@ -1,0 +1,64 @@
+{
+  "task": "ecommerce_product_scraping",
+  "adw_id": "test-structure",
+  "tool": "crawl4ai_with_product_extractor",
+  "config": {
+    "max_concurrent": 3,
+    "delay_between_requests": 1.0,
+    "timeout": 30,
+    "user_agent": "Mozilla/5.0 (compatible; Crawl4AI/1.0)",
+    "headless": true,
+    "verbose": false,
+    "retry_attempts": 3,
+    "retry_delay": 2.0,
+    "respect_robots_txt": true,
+    "use_browser": true,
+    "simulate_user": true,
+    "min_content_length": 100,
+    "max_content_length": 1000000,
+    "include_links": true,
+    "include_images": true,
+    "include_metadata": true
+  },
+  "products_scraped": 1,
+  "products_extracted": 1,
+  "input_source": "single URL: https://www.thaiwatsadu.com/th/sku/60363373",
+  "summary_stats": {
+    "total_products": 1,
+    "price_statistics": {
+      "min_price": 2790.0,
+      "max_price": 2790.0,
+      "avg_price": 2790.0,
+      "products_with_pricing": 1
+    },
+    "discount_statistics": {},
+    "field_completeness": {
+      "name": 1,
+      "brand": 0,
+      "model": 1,
+      "sku": 1,
+      "category": 1,
+      "volume": 1,
+      "dimensions": 1,
+      "material": 1,
+      "color": 1,
+      "description": 1
+    },
+    "retailer_distribution": {
+      "Thai Watsadu": 1
+    },
+    "processing_time": "2025-11-22T17:28:54.161819"
+  },
+  "output_file": "test_output/test-structure/products.json",
+  "output_structure": {
+    "base_folder": "test_output/test-structure",
+    "organization": "job-id",
+    "structured_outputs": {
+      "raw_jsonl": "test_output/test-structure/raw/cc_raw_output.jsonl",
+      "raw_json": "test_output/test-structure/raw/cc_raw_output.json",
+      "final_object": "test_output/test-structure/processed/cc_final_object.json",
+      "summary": "test_output/test-structure/logs/custom_summary_output.json"
+    }
+  },
+  "success": true
+}
