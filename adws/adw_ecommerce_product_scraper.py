@@ -343,13 +343,13 @@ def generate_summary_stats(products: List[ProductData]) -> Dict[str, Any]:
 @click.option(
     "--max-concurrent",
     type=int,
-    default=3,
+    default=2,
     help="Maximum concurrent requests"
 )
 @click.option(
     "--delay",
     type=float,
-    default=1.0,
+    default=1.5,
     help="Delay between requests in seconds"
 )
 @click.option(
@@ -386,6 +386,16 @@ def generate_summary_stats(products: List[ProductData]) -> Dict[str, Any]:
     help="Use browser for scraping (handles JavaScript)"
 )
 @click.option(
+    "--use-cache/--no-cache",
+    default=False,
+    help="Use cache for requests (default: no-cache for fresh data)"
+)
+@click.option(
+    "--stream/--no-stream",
+    default=True,
+    help="Enable streaming for faster processing (default: enabled)"
+)
+@click.option(
     "--test",
     is_flag=True,
     help="Run in test mode with minimal output"
@@ -405,6 +415,8 @@ def main(
     retry_attempts: int,
     retry_delay: float,
     use_browser: bool,
+    use_cache: bool,
+    stream: bool,
     test: bool,
 ):
     """E-commerce product data scraper."""
@@ -460,6 +472,8 @@ def main(
         retry_attempts=retry_attempts,
         retry_delay=retry_delay,
         use_browser=use_browser,
+        use_cache=use_cache,
+        stream_results=stream,
     )
 
     # Display configuration

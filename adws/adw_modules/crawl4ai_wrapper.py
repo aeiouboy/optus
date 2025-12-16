@@ -20,7 +20,7 @@ from pathlib import Path
 import logging
 
 try:
-    from crawl4ai import AsyncWebCrawler
+    from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
     from crawl4ai.extraction_strategy import LLMExtractionStrategy, JsonCssExtractionStrategy
     try:
         from crawl4ai.llm_config import LLMConfig
@@ -29,12 +29,15 @@ try:
             from crawl4ai.extraction_strategy import LLMConfig
         except ImportError:
             LLMConfig = None
-    
+
     from crawl4ai.chunking_strategy import RegexChunking
     CRAWL4AI_AVAILABLE = True
 except ImportError:
     CRAWL4AI_AVAILABLE = False
     AsyncWebCrawler = None
+    BrowserConfig = None
+    CrawlerRunConfig = None
+    CacheMode = None
     LLMExtractionStrategy = None
     JsonCssExtractionStrategy = None
     RegexChunking = None
@@ -48,8 +51,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ScrapingConfig:
     """Configuration for web scraping operations."""
-    max_concurrent: int = 3
-    delay_between_requests: float = 1.0
+    max_concurrent: int = 2  # Reduced from 3 to avoid network errors
+    delay_between_requests: float = 1.5  # Increased from 1.0 to be polite
     timeout: int = 30
     user_agent: str = "Mozilla/5.0 (compatible; Crawl4AI/1.0)"
     headless: bool = True
@@ -70,6 +73,10 @@ class ScrapingConfig:
     include_links: bool = True
     include_images: bool = True
     include_metadata: bool = True
+
+    # Performance optimization options (optimized for price updates)
+    use_cache: bool = True  # Enable cache by default for speed (use --no-cache for full refresh)
+    stream_results: bool = True  # Enables streaming for faster processing
 
 
 @dataclass
@@ -128,18 +135,34 @@ class Crawl4AIWrapper:
         await self.close()
 
     async def initialize(self):
-        """Initialize the crawler instance."""
-        try:
-            self.crawler = AsyncWebCrawler(
-                headless=self.config.headless,
-                verbose=self.config.verbose,
-                user_agent=self.config.user_agent,
-            )
-            await self.crawler.start()
-            logger.info("Crawl4AI crawler initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Crawl4AI crawler: {e}")
-            raise
+        """Initialize the crawler instance with retry logic."""
+        max_init_attempts = 3
+        for attempt in range(max_init_attempts):
+            try:
+                browser_config = BrowserConfig(
+                    headless=self.config.headless,
+                    verbose=self.config.verbose,
+                    user_agent=self.config.user_agent,
+                )
+                self.crawler = AsyncWebCrawler(config=browser_config)
+                await self.crawler.start()
+                logger.info("Crawl4AI crawler initialized successfully")
+                return
+            except Exception as e:
+                logger.warning(f"Browser launch failed (attempt {attempt + 1}/{max_init_attempts}): {e}")
+                if attempt < max_init_attempts - 1:
+                    # Clean up failed instance
+                    if self.crawler:
+                        try:
+                            await self.crawler.close()
+                        except:
+                            pass
+                        self.crawler = None
+                    # Wait before retry
+                    await asyncio.sleep(2 * (attempt + 1))
+                else:
+                    logger.error(f"Failed to initialize Crawl4AI crawler after {max_init_attempts} attempts")
+                    raise
 
     async def close(self):
         """Close the crawler instance."""
@@ -149,6 +172,57 @@ class Crawl4AIWrapper:
                 logger.info("Crawl4AI crawler closed successfully")
             except Exception as e:
                 logger.error(f"Error closing Crawl4AI crawler: {e}")
+
+    async def ensure_crawler_ready(self):
+        """Ensure crawler is initialized and healthy, reinitialize if needed."""
+        if not self.crawler:
+            await self.initialize()
+            return
+
+        # Check if crawler is still alive by checking browser state
+        try:
+            # If crawler exists but browser is closed, we need to reinitialize
+            if hasattr(self.crawler, 'browser') and self.crawler.browser is not None:
+                # Browser exists, check if it's still connected
+                if hasattr(self.crawler.browser, 'is_connected'):
+                    if not self.crawler.browser.is_connected():
+                        logger.warning("Browser disconnected, reinitializing crawler...")
+                        await self.close()
+                        self.crawler = None
+                        await self.initialize()
+        except Exception as e:
+            # If health check fails, reinitialize
+            logger.warning(f"Crawler health check failed: {e}, reinitializing...")
+            try:
+                await self.close()
+            except:
+                pass
+            self.crawler = None
+            await self.initialize()
+
+    def create_run_config(self, wait_for: Optional[str] = None) -> Optional[Any]:
+        """Create a CrawlerRunConfig with optimized settings.
+
+        Args:
+            wait_for: Optional JavaScript condition to wait for (caller override)
+
+        Returns:
+            CrawlerRunConfig instance or None if not available
+        """
+        if CrawlerRunConfig is None or CacheMode is None:
+            logger.debug("CrawlerRunConfig or CacheMode not available, using legacy mode")
+            return None
+
+        try:
+            return CrawlerRunConfig(
+                cache_mode=CacheMode.ENABLED if self.config.use_cache else CacheMode.BYPASS,
+                stream=self.config.stream_results,
+                only_text=False,  # Keep images - preserve image extraction capability
+                wait_for=wait_for
+            )
+        except Exception as e:
+            logger.warning(f"Failed to create CrawlerRunConfig: {e}, falling back to legacy mode")
+            return None
 
     def validate_url(self, url: str) -> Tuple[bool, Optional[str]]:
         """Validate and normalize URL.
@@ -239,10 +313,17 @@ class Crawl4AIWrapper:
 
         url = normalized_url_or_error
 
-        if not self.crawler:
-            await self.initialize()
+        # Ensure crawler is ready before scraping
+        await self.ensure_crawler_ready()
 
         result = ScrapingResult(url=url, success=False)
+
+        # Create run config for optimized crawling
+        default_wait_for = wait_for or ("""
+            () => document.readyState === 'complete' &&
+            document.body && document.body.innerText.length > 100
+            """ if self.config.use_browser else None)
+        run_config = self.create_run_config(wait_for=default_wait_for)
 
         for attempt in range(self.config.retry_attempts):
             try:
@@ -252,26 +333,45 @@ class Crawl4AIWrapper:
 
                 logger.info(f"Scraping URL: {url} (attempt {attempt + 1})")
 
-                # Perform the crawl
-                crawl_result = await self.crawler.arun(
-                    url=url,
-                    word_count_threshold=self.config.min_content_length,
-                    extraction_strategy=extraction_strategy,
-                    bypass_cache=False,
-                    js_code="""
-                    // Wait for dynamic content to load
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-                    """ if self.config.use_browser else None,
-                    wait_for=wait_for or ("""
-                    () => document.readyState === 'complete' &&
-                    document.body && document.body.innerText.length > 100
-                    """ if self.config.use_browser else None),
-                    css_selector=css_selector or ("""
-                    body
-                    """ if self.config.use_browser else None),
-                    simulate_user=self.config.simulate_user,
-                    override_navigator=True,
-                )
+                # Ensure crawler is still healthy before each attempt
+                await self.ensure_crawler_ready()
+
+                # Perform the crawl with CrawlerRunConfig if available
+                if run_config is not None:
+                    # Use new optimized CrawlerRunConfig
+                    crawl_result = await self.crawler.arun(
+                        url=url,
+                        config=run_config,
+                        word_count_threshold=self.config.min_content_length,
+                        extraction_strategy=extraction_strategy,
+                        js_code="""
+                        // Wait for dynamic content to load
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        """ if self.config.use_browser else None,
+                        css_selector=css_selector or ("""
+                        body
+                        """ if self.config.use_browser else None),
+                        simulate_user=self.config.simulate_user,
+                        override_navigator=True,
+                    )
+                else:
+                    # Fallback to legacy mode
+                    crawl_result = await self.crawler.arun(
+                        url=url,
+                        word_count_threshold=self.config.min_content_length,
+                        extraction_strategy=extraction_strategy,
+                        bypass_cache=False,
+                        js_code="""
+                        // Wait for dynamic content to load
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        """ if self.config.use_browser else None,
+                        wait_for=default_wait_for,
+                        css_selector=css_selector or ("""
+                        body
+                        """ if self.config.use_browser else None),
+                        simulate_user=self.config.simulate_user,
+                        override_navigator=True,
+                    )
 
                 if crawl_result.success:
                     result.success = True
@@ -327,8 +427,27 @@ class Crawl4AIWrapper:
                     logger.warning(f"Failed to scrape {url}: {error_msg}")
 
             except Exception as e:
-                result.error_message = f"Scraping error: {str(e)}"
+                error_str = str(e)
+                result.error_message = f"Scraping error: {error_str}"
                 logger.error(f"Error scraping {url} (attempt {attempt + 1}): {e}")
+
+                # Check if it's a browser-related error that requires reinitialization
+                browser_error_keywords = [
+                    "Target page, context or browser has been closed",
+                    "Browser has been closed",
+                    "Connection closed",
+                    "Protocol error",
+                    "Browser is not connected"
+                ]
+
+                if any(keyword in error_str for keyword in browser_error_keywords):
+                    logger.warning(f"Detected browser crash/closure, reinitializing for next attempt...")
+                    try:
+                        await self.close()
+                    except:
+                        pass
+                    self.crawler = None
+                    # Will be reinitialized on next attempt via ensure_crawler_ready()
 
                 if attempt == self.config.retry_attempts - 1:
                     # Final attempt failed
@@ -343,6 +462,9 @@ class Crawl4AIWrapper:
     ) -> List[ScrapingResult]:
         """Scrape multiple URLs with concurrency control.
 
+        Uses arun_many() for optimized batch processing when available,
+        with streaming support for immediate result processing.
+
         Args:
             urls: List of URLs to scrape
             extraction_strategy: Optional extraction strategy
@@ -353,13 +475,76 @@ class Crawl4AIWrapper:
         if not urls:
             return []
 
+        if not self.crawler:
+            await self.initialize()
+
+        # Validate URLs first
+        validated_urls = []
+        invalid_results = []
+        for url in urls:
+            is_valid, normalized_url_or_error = self.validate_url(url)
+            if is_valid:
+                validated_urls.append(normalized_url_or_error)
+            else:
+                invalid_results.append(ScrapingResult(
+                    url=url,
+                    success=False,
+                    error_message=normalized_url_or_error
+                ))
+
+        if not validated_urls:
+            return invalid_results
+
         results = []
 
-        # Process URLs in batches to control concurrency
+        # Try to use arun_many for optimized batch processing
+        run_config = self.create_run_config()
+        use_arun_many = (
+            run_config is not None and
+            hasattr(self.crawler, 'arun_many') and
+            self.config.stream_results
+        )
+
+        if use_arun_many:
+            try:
+                logger.info(f"Using arun_many for batch processing {len(validated_urls)} URLs")
+
+                # Use arun_many for better concurrency handling
+                crawl_results = await self.crawler.arun_many(
+                    urls=validated_urls,
+                    config=run_config,
+                    word_count_threshold=self.config.min_content_length,
+                    extraction_strategy=extraction_strategy,
+                )
+
+                # Process results as they arrive (streaming)
+                url_index = 0
+                async for crawl_result in crawl_results:
+                    url = validated_urls[url_index] if url_index < len(validated_urls) else "unknown"
+                    url_index += 1
+
+                    result = self._process_crawl_result(crawl_result, url)
+                    results.append(result)
+
+                    # Add delay between processing (for rate limiting)
+                    if self.config.delay_between_requests > 0:
+                        await asyncio.sleep(self.config.delay_between_requests)
+
+                    logger.info(f"Processed {url_index}/{len(validated_urls)} URLs")
+
+                # Combine with invalid results
+                return invalid_results + results
+
+            except Exception as e:
+                logger.warning(f"arun_many failed: {e}, falling back to individual scraping")
+                # Fall through to legacy batch processing
+
+        # Fallback: Process URLs in batches using individual arun() calls
+        logger.info(f"Using legacy batch processing for {len(validated_urls)} URLs")
         batch_size = self.config.max_concurrent
 
-        for i in range(0, len(urls), batch_size):
-            batch = urls[i:i + batch_size]
+        for i in range(0, len(validated_urls), batch_size):
+            batch = validated_urls[i:i + batch_size]
 
             # Create semaphore to limit concurrent requests
             semaphore = asyncio.Semaphore(batch_size)
@@ -387,9 +572,78 @@ class Crawl4AIWrapper:
                 else:
                     results.append(batch_result)
 
-            logger.info(f"Completed batch {i//batch_size + 1}/{(len(urls) + batch_size - 1)//batch_size}")
+            logger.info(f"Completed batch {i//batch_size + 1}/{(len(validated_urls) + batch_size - 1)//batch_size}")
 
-        return results
+        return invalid_results + results
+
+    def _process_crawl_result(self, crawl_result: Any, url: str) -> ScrapingResult:
+        """Process a single crawl result into a ScrapingResult.
+
+        Args:
+            crawl_result: Raw crawl result from crawler
+            url: URL that was crawled
+
+        Returns:
+            ScrapingResult object
+        """
+        result = ScrapingResult(url=url, success=False)
+
+        try:
+            if crawl_result.success:
+                result.success = True
+                result.content = crawl_result.cleaned_html or crawl_result.html
+                result.markdown = str(crawl_result.markdown) if crawl_result.markdown else None
+                result.html = crawl_result.html
+                result.status_code = getattr(crawl_result, 'status_code', 200)
+                result.extracted_content = getattr(crawl_result, 'extracted_content', None)
+
+                # Extract links
+                if self.config.include_links and crawl_result.links:
+                    try:
+                        result.links = [link.get('href', '') for link in crawl_result.links
+                                      if link and hasattr(link, 'get') and link.get('href')]
+                    except (TypeError, AttributeError):
+                        result.links = []
+
+                # Extract images
+                if self.config.include_images and crawl_result.media:
+                    try:
+                        result.images = [media.get('src', '') for media in crawl_result.media
+                                      if media and hasattr(media, 'get') and media.get('src') and media.get('type') == 'image']
+                    except (TypeError, AttributeError):
+                        result.images = []
+
+                # Extract metadata
+                if self.config.include_metadata:
+                    domain = self.get_domain_from_url(url)
+                    content_type = self.detect_content_type(url, result.content, result.metadata)
+
+                    result.metadata = {
+                        'title': getattr(crawl_result, 'title', ''),
+                        'description': getattr(crawl_result, 'description', ''),
+                        'language': getattr(crawl_result, 'language', ''),
+                        'status_code': result.status_code,
+                        'url': url,
+                        'word_count': len(result.content.split()) if result.content else 0,
+                        'domain': domain,
+                        'content_type': content_type,
+                        'scraped_at': result.timestamp,
+                        'extraction_method': 'crawl4ai',
+                        'links_count': len(result.links) if result.links else 0,
+                        'images_count': len(result.images) if result.images else 0,
+                    }
+
+                logger.info(f"Successfully processed {url}")
+            else:
+                error_msg = getattr(crawl_result, 'error_message', 'Unknown error')
+                result.error_message = f"Crawl failed: {error_msg}"
+                logger.warning(f"Failed to process {url}: {error_msg}")
+
+        except Exception as e:
+            result.error_message = f"Result processing error: {str(e)}"
+            logger.error(f"Error processing result for {url}: {e}")
+
+        return result
 
     def create_json_extraction_strategy(self, schema: Dict[str, Any]) -> Any:
         """Create a JSON CSS extraction strategy.

@@ -203,6 +203,8 @@ def create_scraping_config(
     respect_robots: bool = True,
     use_browser: bool = True,
     simulate_user: bool = True,
+    use_cache: bool = False,
+    stream_results: bool = True,
 ) -> ScrapingConfig:
     """Create a ScrapingConfig from CLI parameters.
 
@@ -217,6 +219,8 @@ def create_scraping_config(
         respect_robots: Respect robots.txt
         use_browser: Use browser for scraping
         simulate_user: Simulate user behavior
+        use_cache: Use cache for requests (False = BYPASS for fresh data)
+        stream_results: Enable streaming for faster processing
 
     Returns:
         ScrapingConfig instance
@@ -232,6 +236,8 @@ def create_scraping_config(
         respect_robots_txt=respect_robots,
         use_browser=use_browser,
         simulate_user=simulate_user,
+        use_cache=use_cache,
+        stream_results=stream_results,
     )
 
 
@@ -830,13 +836,13 @@ def generate_summary_stats(results: List[ScrapingResult]) -> Dict[str, Any]:
 @click.option(
     "--max-concurrent",
     type=int,
-    default=3,
+    default=2,
     help="Maximum concurrent requests"
 )
 @click.option(
     "--delay",
     type=float,
-    default=1.0,
+    default=1.5,
     help="Delay between requests in seconds"
 )
 @click.option(
@@ -883,6 +889,16 @@ def generate_summary_stats(results: List[ScrapingResult]) -> Dict[str, Any]:
     help="Simulate user behavior to avoid detection"
 )
 @click.option(
+    "--use-cache/--no-cache",
+    default=False,
+    help="Use cache for requests (default: no-cache for fresh data)"
+)
+@click.option(
+    "--stream/--no-stream",
+    default=True,
+    help="Enable streaming for faster processing (default: enabled)"
+)
+@click.option(
     "--test",
     is_flag=True,
     help="Run in test mode with minimal output"
@@ -919,6 +935,8 @@ def main(
     respect_robots: bool,
     use_browser: bool,
     simulate_user: bool,
+    use_cache: bool,
+    stream: bool,
     test: bool,
     crawl_depth: int,
     max_pages: Optional[int],
@@ -1013,6 +1031,8 @@ def main(
         respect_robots=respect_robots,
         use_browser=use_browser,
         simulate_user=simulate_user,
+        use_cache=use_cache,
+        stream_results=stream,
     )
 
     # Display configuration
